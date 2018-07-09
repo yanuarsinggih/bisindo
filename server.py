@@ -52,7 +52,7 @@ if __name__ == '__main__':
 			print ('Predict result male  : ', mode(coll_m))
 			print ('Predict result female: ', mode(coll_f))
 			
-			with open("result/result-{}.json".format(fileID), 'w') as resfile:  
+			with open("result/result-{}.txt".format(fileID), 'w') as resfile:  
 				resfile.write('Predict result mixed : {}\n'.mode(coll))
 				resfile.write('Predict result male  : {}\n'.mode(coll_m))
 				resfile.write('Predict result female: {}\n'.mode(coll_f))
