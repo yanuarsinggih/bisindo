@@ -1,0 +1,7 @@
+numpy==1.14.3
+pykinect==2.1
+scipy==1.1.0
+pygame==1.9.3
+pandas==0.23.0
+sklearn_lvq==1.1.0
+scikit_learn==0.19.1
