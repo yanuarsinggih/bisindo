@@ -1,0 +1,3 @@
+Predict result mixed : ibu with frequency 120/182
+Predict result male  : keluar with frequency 62/182
+Predict result female: ibu with frequency 122/182

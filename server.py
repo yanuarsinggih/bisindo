@@ -51,11 +51,13 @@ if __name__ == '__main__':
 			print ('Predict result mixed : ', mode(coll))
 			print ('Predict result male  : ', mode(coll_m))
 			print ('Predict result female: ', mode(coll_f))
+			dir(mode(coll))
 			
 			with open("result/result-{}.txt".format(fileID), 'w') as resfile:  
-				resfile.write('Predict result mixed : {}\n'.mode(coll))
-				resfile.write('Predict result male  : {}\n'.mode(coll_m))
-				resfile.write('Predict result female: {}\n'.mode(coll_f))
+				resfile.write('Predict result mixed : {} with frequency {}/{}\n'.format(mode(coll).mode[0][0], mode(coll).count[0][0], len(coll)))
+				resfile.write('Predict result male  : {} with frequency {}/{}\n'.format(mode(coll_m).mode[0][0], mode(coll_m).count[0][0], len(coll_m)))
+				resfile.write('Predict result female: {} with frequency {}/{}\n'.format(mode(coll_f).mode[0][0], mode(coll_f).count[0][0], len(coll_f)))
+				print ('Saved to result/result-{}.txt'.format(fileID))
 
 			conn.close()
 			print ('client disconnected')

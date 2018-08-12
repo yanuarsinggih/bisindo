@@ -1,0 +1,3 @@
+Predict result mixed : pohon with frequency 242/340
+Predict result male  : kuat with frequency 226/340
+Predict result female: kuat with frequency 198/340

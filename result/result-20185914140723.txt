@@ -1,0 +1,3 @@
+Predict result mixed : kuat with frequency 164/280
+Predict result male  : kuat with frequency 168/280
+Predict result female: kuat with frequency 170/280

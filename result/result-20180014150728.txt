@@ -1,0 +1,3 @@
+Predict result mixed : ibu with frequency 136/232
+Predict result male  : ibu with frequency 105/232
+Predict result female: ibu with frequency 138/232

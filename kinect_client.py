@@ -2,6 +2,10 @@ import thread
 import itertools
 import ctypes
 import json
+from datetime import datetime
+from scipy.stats import mode
+import predict_mixed
+import warnings
 
 import pykinect
 from pykinect import nui
@@ -17,19 +21,16 @@ from math import degrees,atan
 import sys
 from socket import *
 
+warnings.filterwarnings("ignore")
+
 serverHost = 'localhost'
 serverPort = 9876
 
-wordText = 'CONTOH KATA'
+wordText = ''
 
 if len(sys.argv) > 1:
 	serverHost = sys.argv[1]
 
-#Create socket
-#sSock = socket(AF_INET, SOCK_STREAM)
-
-#Connect to server
-#sSock.connect((serverHost, serverPort))
 connect = False
 
 KINECTEVENT = pygame.USEREVENT
@@ -38,12 +39,12 @@ VIDEO_WINSIZE = 640,480
 pygame.init()
 
 SKELETON_COLORS = [THECOLORS["red"], 
-				   THECOLORS["blue"], 
-				   THECOLORS["green"], 
-				   THECOLORS["orange"], 
-				   THECOLORS["purple"], 
-				   THECOLORS["yellow"], 
-				   THECOLORS["violet"]]
+					THECOLORS["blue"], 
+					THECOLORS["green"], 
+					THECOLORS["orange"], 
+					THECOLORS["purple"], 
+					THECOLORS["yellow"], 
+					THECOLORS["violet"]]
 
 LEFT_ARM = (JointId.ShoulderCenter, 
 			JointId.ShoulderLeft, 
@@ -69,12 +70,14 @@ SPINE = (JointId.HipCenter,
 		 JointId.Spine, 
 		 JointId.ShoulderCenter, 
 		 JointId.Head)
+		 
+SKEL_DATA = []
 
 skeleton_to_depth_image = nui.SkeletonEngine.skeleton_to_depth_image
 
 def draw_skeleton_data(pSkelton, index, positions, width = 4):
 	start = pSkelton.SkeletonPositions[positions[0]]
-	   
+		
 	for position in itertools.islice(positions, 1, None):
 		next = pSkelton.SkeletonPositions[position.value]
 		
@@ -87,11 +90,11 @@ def draw_skeleton_data(pSkelton, index, positions, width = 4):
 
 # recipe to get address of surface: http://archives.seul.org/pygame/users/Apr-2008/msg00218.html
 if hasattr(ctypes.pythonapi, 'Py_InitModule4'):
-   Py_ssize_t = ctypes.c_int
+	Py_ssize_t = ctypes.c_int
 elif hasattr(ctypes.pythonapi, 'Py_InitModule4_64'):
-   Py_ssize_t = ctypes.c_int64
+	Py_ssize_t = ctypes.c_int64
 else:
-   raise TypeError("Cannot determine type of Py_ssize_t")
+	raise TypeError("Cannot determine type of Py_ssize_t")
 
 _PyObject_AsWriteBuffer = ctypes.pythonapi.PyObject_AsWriteBuffer
 _PyObject_AsWriteBuffer.restype = ctypes.c_int
@@ -100,14 +103,55 @@ _PyObject_AsWriteBuffer.argtypes = [ctypes.py_object,
 								  ctypes.POINTER(Py_ssize_t)]
 
 def surface_to_array(surface):
-   buffer_interface = surface.get_buffer()
-   address = ctypes.c_void_p()
-   size = Py_ssize_t()
-   _PyObject_AsWriteBuffer(buffer_interface,
+	buffer_interface = surface.get_buffer()
+	address = ctypes.c_void_p()
+	size = Py_ssize_t()
+	_PyObject_AsWriteBuffer(buffer_interface,
 						  ctypes.byref(address), ctypes.byref(size))
-   bytes = (ctypes.c_byte * size.value).from_address(address.value)
-   bytes.object = buffer_interface
-   return bytes
+	bytes = (ctypes.c_byte * size.value).from_address(address.value)
+	bytes.object = buffer_interface
+	return bytes
+	
+def collect_data(data):
+	global SKEL_DATA
+	SKEL_DATA.append(json.loads(data))
+	
+def process_data():
+	global SKEL_DATA, wordText
+	pData = SKEL_DATA
+	fileID = "{:%Y%M%d%H%m%S}".format(datetime.now())
+	with open("data/data-{}.json".format(fileID), 'w') as outfile:  
+		json.dump(pData, outfile)
+	
+	coll = []
+	coll_m = []
+	coll_f = []
+	for X_test in pData:
+		dt = predict_mixed.predict([[X_test['RIGHT_HAND'][0], X_test['RIGHT_HAND'][1], X_test['LEFT_HAND'][0], X_test['LEFT_HAND'][1], 
+		X_test['RIGHT_WRIST'][0], X_test['RIGHT_WRIST'][1], X_test['LEFT_WRIST'][0], X_test['LEFT_WRIST'][1],
+		X_test['RIGHT_ELBOW'][0], X_test['RIGHT_ELBOW'][1], X_test['LEFT_ELBOW'][0], X_test['LEFT_ELBOW'][1],
+		X_test['RIGHT_SHOULDER'][0], X_test['RIGHT_SHOULDER'][1], X_test['LEFT_SHOULDER'][0], X_test['LEFT_SHOULDER'][1]]])
+		coll.append(dt[0])
+		coll_m.append(dt[1])
+		coll_f.append(dt[2])
+		#print dt
+		
+	# print coll
+	#print ('Predict result mixed : ', mode(coll))
+	#print ('Predict result male  : ', mode(coll_m))
+	#print ('Predict result female: ', mode(coll_f))
+	#dir(mode(coll))
+	wordText = 'Predict result mixed : {}\nPredict result male  : {}\nPredict result female: {}'.format(
+	mode(coll).mode[0][0], mode(coll_m).mode[0][0], mode(coll_f).mode[0][0]
+	)
+	
+	with open("result/result-{}.txt".format(fileID), 'w') as resfile:  
+		resfile.write('Predict result mixed : {} with frequency {}/{}\n'.format(mode(coll).mode[0][0], mode(coll).count[0][0], len(coll)))
+		resfile.write('Predict result male  : {} with frequency {}/{}\n'.format(mode(coll_m).mode[0][0], mode(coll_m).count[0][0], len(coll_m)))
+		resfile.write('Predict result female: {} with frequency {}/{}\n'.format(mode(coll_f).mode[0][0], mode(coll_f).count[0][0], len(coll_f)))
+		#print ('Saved to result/result-{}.txt'.format(fileID))
+		
+	SKEL_DATA = []
 
 def position_to_angle(data):
 	angles = {
@@ -168,17 +212,22 @@ def draw_skeletons(skeletons):
 		# UNCOMMENT TO DRAW LOWER BODY
 		#draw_skeleton_data(data, index, LEFT_LEG)
 		#draw_skeleton_data(data, index, RIGHT_LEG)
+		
 		if data.tracking_state == SkeletonTrackingState.tracked:
 			#print (position_to_angle(data))
 			if connect:
-				sSock.send(json.dumps(position_to_angle(data)))
+				#sSock.send(json.dumps(position_to_angle(data)))
+				collect_data(json.dumps(position_to_angle(data)))
 			
 def show_subs(subs):
-	myfont = pygame.font.SysFont('Calibri', 50)
-	text = myfont.render(subs, 1, THECOLORS["yellow"])
-	text_w = text.get_rect().width
-	text_h = text.get_rect().height
-	screen.blit(text, ((VIDEO_WINSIZE[0]- text_w) / 2, VIDEO_WINSIZE[1] - text_h - 25))
+	rSubs = subs.split('\n')
+	for i in range(0, len(rSubs)):
+		myfont = pygame.font.SysFont('Calibri', 100/len(rSubs))
+		text = myfont.render(rSubs[i], 1, THECOLORS["yellow"])
+		text_w = text.get_rect().width
+		text_h = text.get_rect().height
+		# screen.blit(text, ((VIDEO_WINSIZE[0]- text_w) / 2, VIDEO_WINSIZE[1] - text_h - 25))
+		screen.blit(text, (25, VIDEO_WINSIZE[1] - text_h - (25 * (i+1))))
 
 
 def depth_frame_ready(frame):
@@ -284,11 +333,11 @@ if __name__ == '__main__':
 				kinect.camera.elevation_angle = 2
 			elif e.key == K_SPACE:
 				if not connect:
-					sSock = socket(AF_INET, SOCK_STREAM)
-					sSock.connect((serverHost, serverPort))
+					#sSock = socket(AF_INET, SOCK_STREAM)
+					#sSock.connect((serverHost, serverPort))
 					connect = True
 				else:
-					sSock.shutdown(0)
-					sSock.close()					
-					#sSock = socket(AF_INET, SOCK_STREAM)
+					#sSock.shutdown(0)
+					#sSock.close()					
 					connect = False
+					process_data()
