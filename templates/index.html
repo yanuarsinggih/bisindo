@@ -1,0 +1,148 @@
+<html>
+<head>
+<script src="script/jquery-latest.js"></script>
+<script>
+function refresh(node)
+{
+   var times = 10; // gap in Milli Seconds;   
+
+   (function startRefresh()
+   {
+      var address;
+      if(node.src.indexOf('?')>-1)
+       address = node.src.split('?')[0];
+      else 
+       address = node.src;
+      new_address = address+"?time="+new Date().getTime()
+      $.ajax({
+            url:new_address,
+            type:'HEAD',
+            success: function() { node.src = new_address; }
+        });
+
+      setTimeout(startRefresh,times);
+   })();   
+}
+
+function refreshResult() {
+    var res_times = 100;
+    
+    (function startRefreshResult() {
+        $.ajax({
+            url:'web_data.json',
+            type:'HEAD',
+            error: function() 
+            {
+                $('#procStat').html('Processing...');
+            },
+            success: function()
+            {
+                $.getJSON( 'web_data.json', function( data ) {
+                    // GLVQ
+                    $('#glvq_mixed').html(data['glvq']['mixed']);
+                    $('#glvq_male').html(data['glvq']['male']);
+                    $('#glvq_female').html(data['glvq']['female']);
+                    
+                    // DTW
+                    $('#dtw_mixed').html(data['dtw']['mixed']);
+                    $('#dtw_male').html(data['dtw']['male']);
+                    $('#dtw_female').html(data['dtw']['female']);
+                    
+                    // HMM
+                    $('#hmm_mixed').html(data['hmm']['mixed']);
+                    $('#hmm_male').html(data['hmm']['male']);
+                    $('#hmm_female').html(data['hmm']['female']);
+                });
+                
+                $.getJSON( 'akurasi.json', function( data ) {
+                    var max_score = 0.0;
+                    var id_max = '';
+                    $.each( data['glvq'], function( key, val ) {
+                        if (val > max_score) {
+                            max_score = val;
+                            id_max = '#glvq_' + key;
+                        }
+                    });
+                    $(id_max).css({'background-color': 'black', 'color': 'white', 'font-weight': 'bold'});
+                    
+                    max_score = 0.0;
+                    id_max = '';
+                    $.each( data['dtw'], function( key, val ) {
+                        if (val > max_score) {
+                            max_score = val;
+                            id_max = '#dtw_' + key;
+                        }
+                    });
+                    $(id_max).css({'background-color': 'black', 'color': 'white', 'font-weight': 'bold'});
+                    
+                    max_score = 0.0;
+                    id_max = '';
+                    $.each( data['hmm'], function( key, val ) {
+                        if (val > max_score) {
+                            max_score = val;
+                            id_max = '#hmm_' + key;
+                        }
+                    });
+                    $(id_max).css({'background-color': 'black', 'color': 'white', 'font-weight': 'bold'});
+                });
+                $('#procStat').html('');
+            }
+        });
+      setTimeout(startRefreshResult, res_times);
+    })();
+}
+
+window.onload = function()
+{
+  // var node = document.getElementById('img');
+  // refresh(node);
+  refreshResult();
+  // you can refresh as many images you want just repeat above steps
+}
+</script>
+<style>
+    #img {
+        webkit-backface-visibility: hidden;
+        moz-backface-visibility:    hidden;
+        ms-backface-visibility:     hidden;
+    }
+</style>
+</head>
+<body>
+<div style='width:800px; margin:0 auto; text-align: center'>
+    <div>
+        <h1>BISINDO TRANSLATOR</h1>
+        <img src="{{ url_for('video_feed') }}" id='img' />
+    </div>
+    <div>
+        <h2>MODEL RESULT</h2>
+        <table id='ML_Result' style='margin:0 auto; text-align: center'>
+            <tr>
+                <th>MODEL</th>
+                <th>MIXED</th>
+                <th>MALE</th>
+                <th>FEMALE</th>
+            </tr>
+            <tr id='HMM'>
+                <td><strong>HMM</strong></td>
+                <td id='hmm_mixed'></td>
+                <td id='hmm_male'></td>
+                <td id='hmm_female'></td>
+            </tr>
+            <tr id='glvq'>
+                <td><strong>GLVQ</strong></td>
+                <td id='glvq_mixed'></td>
+                <td id='glvq_male'></td>
+                <td id='glvq_female'></td>
+            </tr>
+            <tr id='dtw'>
+                <td><strong>DTW</strong></td>
+                <td id='dtw_mixed'></td>
+                <td id='dtw_male'></td>
+                <td id='dtw_female'></td>
+            </tr>            
+        </table>
+        <p id='procStat' style='color: green; font-weight: bold'></p>
+    </div>
+</body>
+</html>
